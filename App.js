@@ -1,6 +1,12 @@
 // import React from "react";
 import { useEffect } from "react";
-import { Canvas, useImage, Image } from "@shopify/react-native-skia";
+import {
+  Canvas,
+  useImage,
+  Image,
+  rotate,
+  Group,
+} from "@shopify/react-native-skia";
 import { useWindowDimensions } from "react-native";
 import {
   useSharedValue,
@@ -9,6 +15,9 @@ import {
   withSequence,
   withRepeat,
   useFrameCallback,
+  useDerivedValue,
+  interpolate,
+  Extrapolation,
 } from "react-native-reanimated";
 import {
   GestureHandlerRootView,
@@ -16,7 +25,11 @@ import {
   Gesture,
 } from "react-native-gesture-handler";
 
-const GRAVITY = 100;
+const GRAVITY = 1000;
+const JUMP_FORCE = -500;
+// const birdRotation = useDerivedValue(() => {
+//   return birdYVelocity.value;
+// });
 const App = () => {
   const { width, height } = useWindowDimensions();
   const bg = useImage(require("./assets/sprites/background-day.png"));
@@ -25,8 +38,8 @@ const App = () => {
   const topPipe = useImage(require("./assets/sprites/pipe-green - top.png"));
   const base = useImage(require("./assets/sprites/base.png"));
   const x = useSharedValue(width);
-  const birdY = useSharedValue(0);
-  const birdYVelocity = useSharedValue(100);
+  const birdY = useSharedValue(height / 3);
+  const birdYVelocity = useSharedValue(0);
 
   useFrameCallback(({ timeSincePreviousFrame: dt }) => {
     // console.log(birdY.value + birdYVelocity * dt);
@@ -52,12 +65,29 @@ const App = () => {
 
     // birdY.value = withTiming(height, { duration: 1000 });
   }, []);
+
   const gesture = Gesture.Tap().onStart(() => {
-    birdYVelocity.value = -100;
+    birdYVelocity.value = -500;
     console.log("tap started");
   });
+
   const pipeOffset = 0;
 
+  const birdTransform = useDerivedValue(() => {
+    return [
+      {
+        rotate: interpolate(
+          birdYVelocity.value,
+          [-50, 50],
+          [-0.5, 0.5],
+          Extrapolation.CLAMP
+        ),
+      },
+    ];
+  });
+  const birdOrigin = useDerivedValue(() => {
+    return { x: width / 4 + 32, y: birdY.value + 24 };
+  });
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <GestureDetector gesture={gesture}>
@@ -81,7 +111,6 @@ const App = () => {
             width={103}
             height={640}
           />
-
           <Image
             image={pipeBottom}
             y={height - 320 + pipeOffset}
@@ -89,9 +118,17 @@ const App = () => {
             width={103}
             height={640}
           />
-
           {/* Bird */}
-          <Image image={bird} y={birdY} x={width / 4} width={64} height={48} />
+
+          <Group transform={birdTransform} origin={birdOrigin}>
+            <Image
+              image={bird}
+              y={birdY}
+              x={width / 4}
+              width={64}
+              height={48}
+            />
+          </Group>
         </Canvas>
       </GestureDetector>
     </GestureHandlerRootView>
